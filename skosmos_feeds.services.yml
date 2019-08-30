@@ -1,0 +1,4 @@
+services:
+  skosmos_feeds.rdf_graph_service:
+    class: Drupal\skosmos_feeds\Model\RdfGraphService
+    arguments: ['@string_translation', '@cache.default']

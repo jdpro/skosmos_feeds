@@ -1,0 +1,7 @@
+name: Skosmos feeds
+type: module
+description: 'Creates dedicates feed types to create vocabularies from skosmos API.'
+core: 8.x
+
+dependencies:
+  - feeds
