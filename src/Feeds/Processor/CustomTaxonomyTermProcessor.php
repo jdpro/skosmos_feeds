@@ -59,7 +59,7 @@ class CustomTaxonomyTermProcessor extends EntityProcessorBase
             FieldStorageConfig::create([
                 'field_name' => 'concept_uri',
                 'entity_type' => 'taxonomy_term',
-                'type' => 'link',
+                'type' => 'string',
                 'translatable' => FALSE,
                 'cardinality' => 1,
             ])->save();
