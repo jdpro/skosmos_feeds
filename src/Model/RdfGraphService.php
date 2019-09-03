@@ -62,15 +62,15 @@ class RdfGraphService {
    *
    * @return bool
    */
-  public function fetchRdfData($application_uri, $vocabularyUri, $max, StateInterface $state, FeedInterface $feed, $cacheKey) {
-    if (!$this->loadVocabulary($application_uri, $vocabularyUri, $state)) {
+  public function fetchVocabularyFromSkosmos($application_uri, $vocabularyUri, $max, StateInterface $state, FeedInterface $feed, $cacheKey) {
+    if (!$this->fetchVocabularyRoot($application_uri, $vocabularyUri, $state)) {
       return FALSE;
     }
     $scheme = $this->getGraph()->allOfType('skos:ConceptScheme')[0];
     $topConcepts = $scheme->all('skos:hasTopConcept');
     //$state->total = self::PROGRESS_TOTAL;
     //$state->progress(self::PROGRESS_TOTAL, 0);
-    return $this->loadConceptsRecursively($application_uri, $topConcepts, $max, $cacheKey, [], $state, $feed, self::PROGRESS_TOTAL);
+    return $this->fetchConceptTreeRecursively($application_uri, $topConcepts, $max, $cacheKey, [], $state, $feed, self::PROGRESS_TOTAL);
   }
 
 
@@ -81,7 +81,7 @@ class RdfGraphService {
    *
    * @return bool
    */
-  private function loadVocabulary($application_uri, $vocabulary, StateInterface $state) {
+  private function fetchVocabularyRoot($application_uri, $vocabulary, StateInterface $state) {
     $completeUri = "$application_uri?uri=$vocabulary&format=text/turtle";
     try {
       $this->graph->load($completeUri, 'text/turtle');
@@ -147,7 +147,7 @@ class RdfGraphService {
     return array_merge($tops, $children);
   }
 
-  private function loadConceptsRecursively($application_uri, array $resources, $max, $cacheKey, array $buffer, StateInterface $state, FeedInterface $feed, $maxProgress) {
+  private function fetchConceptTreeRecursively($application_uri, array $resources, $max, $cacheKey, array $buffer, StateInterface $state, FeedInterface $feed, $maxProgress) {
     if (count($resources) == 0) {
       return TRUE;
     }
@@ -170,7 +170,7 @@ class RdfGraphService {
       $args = ['%uri' => $resource->getUri()];
       $state->setMessage($this->t('Loading concept "%uri"', $args), 'status');
       $state->logMessages($feed);
-      if (!$this->loadVocabulary($application_uri, $resource->getUri(), $state)) {
+      if (!$this->fetchVocabularyRoot($application_uri, $resource->getUri(), $state)) {
         return FALSE;
       }
       $newConceptFound = TRUE;
@@ -181,7 +181,7 @@ class RdfGraphService {
     if (TRUE === $newConceptFound) {
       $children = $resource->all('skos:narrower');
 
-      if (!$this->loadConceptsRecursively($application_uri, $children, $max, $cacheKey, $buffer, $state, $feed, $counter * $progressShare)) {
+      if (!$this->fetchConceptTreeRecursively($application_uri, $children, $max, $cacheKey, $buffer, $state, $feed, $counter * $progressShare)) {
         return FALSE;
       }
     }

@@ -87,7 +87,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
   public function fetch(FeedInterface $feed, StateInterface $state) {
     $max = 10;
     $cacheKey = $this->getCacheKey($feed);
-    $success = $this->rdfGraphService->fetchRdfData($this->getConfiguration('application_uri'), $feed->getSource(), $max, $state, $feed, $cacheKey);
+    $success = $this->rdfGraphService->fetchVocabularyFromSkosmos($this->getConfiguration('application_uri'), $feed->getSource(), $max, $state, $feed, $cacheKey);
     //TODO handle fetch failure
     $tempFile = $this->getTempFile();
     $data = $this->rdfGraphService->serialize($state);
