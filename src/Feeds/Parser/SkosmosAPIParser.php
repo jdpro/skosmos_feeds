@@ -94,14 +94,19 @@ class SkosmosAPIParser extends ParserBase {
     return [
       'prefLabel' => [
         'label' => $this->t('skos:prefLabel'),
-        'description' => $this->t('Preferred label of the concept.'),
-        // todo REMOVE
-        'suggestions' => [
-          'targets' => ['subject', 'title', 'label', 'name'],
-          'types' => [
-            'field_item:text' => [],
-          ],
-        ],
+        'description' => $this->t('The preferred lexical label for a resource, in a given language. '),
+      ],
+      'altLabel' => [
+        'label' => $this->t('skos:altLabel'),
+        'description' => $this->t('An alternative lexical label for a resource.'),
+      ],
+      'definition' => [
+        'label' => $this->t('skos:definition'),
+        'description' => $this->t('A statement or formal explanation of the meaning of a concept.'),
+      ],
+      'scopeNote' => [
+        'label' => $this->t('skos:scopeNote'),
+        'description' => $this->t('Note that helps to clarify the meaning and/or the use of the concept.'),
       ],
       'URI' => [
         'label' => $this->t('Resource URI'),
