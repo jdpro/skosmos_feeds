@@ -85,10 +85,23 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
    * {@inheritdoc}
    */
   public function fetch(FeedInterface $feed, StateInterface $state) {
-    $max = 10;
+    $maxNumberOfLeafConcepts = 0;
+    $incrementalFetch = FALSE;
+    if (isset($feed->get('config')->incremental_fetch)) {
+      $incrementalFetch = $feed->get('config')->incremental_fetch;
+    }
+    if ($incrementalFetch) {
+      if (isset($feed->get('config')->max_number_of_leaf_concepts)) {
+        $maxNumberOfLeafConcepts = intval($feed->get('config')->max_number_of_leaf_concepts);
+      }
+    }
+
     $cacheKey = $this->getCacheKey($feed);
-    $success = $this->rdfGraphService->fetchVocabularyFromSkosmos($this->getConfiguration('application_uri'), $feed->getSource(), $max, $state, $feed, $cacheKey);
+    $fetchedConcepts = $this->rdfGraphService->fetchVocabularyFromSkosmos($this->getConfiguration('application_uri'), $feed->getSource(), $incrementalFetch, $maxNumberOfLeafConcepts, $state, $feed, $cacheKey);
     //TODO handle fetch failure
+    if ($incrementalFetch) {
+      $feed->get('config')->uris_to_parse = $fetchedConcepts;
+    }
     $tempFile = $this->getTempFile();
     $data = $this->rdfGraphService->serialize($state);
     //TODO serialization failure
@@ -116,7 +129,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
 
 
   /**
-   * Returns the download cache key for a given feed.
+   * Returns the fetcher cache key for a given feed.
    *
    * @param \Drupal\feeds\FeedInterface $feed
    *   The feed to find the cache key for.

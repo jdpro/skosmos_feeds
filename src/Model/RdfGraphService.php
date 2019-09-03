@@ -56,21 +56,33 @@ class RdfGraphService {
   }
 
   /**
-   * @param $application_uri Base URI of reste API
-   * @param $vocabularyUri URI of the vocabulary (conceptScheme) to load
-   * @param StateInterface $state
+   * @param string $application_uri Base URI of reste API
+   * @param string $vocabularyUri URI of the vocabulary (conceptScheme) to load
+   * @param boolean $incrementalFetch
+   * @param integer $maxNumberOfLeafConcepts
+   * @param \Drupal\feeds\StateInterface $state
+   * @param \Drupal\feeds\FeedInterface $feed
+   * @param $cacheKey
    *
    * @return bool
    */
-  public function fetchVocabularyFromSkosmos($application_uri, $vocabularyUri, $max, StateInterface $state, FeedInterface $feed, $cacheKey) {
-    if (!$this->fetchVocabularyRoot($application_uri, $vocabularyUri, $state)) {
+  public function fetchVocabularyFromSkosmos($application_uri, $vocabularyUri, $incrementalFetch, $maxNumberOfLeafConcepts, StateInterface $state, FeedInterface $feed, $cacheKey) {
+    if (!$this->fetchResourceURIFromSkosmos($application_uri, $vocabularyUri, $state)) {
       return FALSE;
     }
     $scheme = $this->getGraph()->allOfType('skos:ConceptScheme')[0];
     $topConcepts = $scheme->all('skos:hasTopConcept');
     //$state->total = self::PROGRESS_TOTAL;
     //$state->progress(self::PROGRESS_TOTAL, 0);
-    return $this->fetchConceptTreeRecursively($application_uri, $topConcepts, $max, $cacheKey, [], $state, $feed, self::PROGRESS_TOTAL);
+    $fetchedLeafConceptUriBuffer = [];
+    $fetchedUribuffer = [];
+    $success = $this->fetchConceptTreeRecursively($application_uri, $topConcepts, $incrementalFetch, $fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, $fetchedUribuffer, $state, $feed, self::PROGRESS_TOTAL);
+    if ($success) {
+      return $fetchedUribuffer;
+    }
+    else {
+      return FALSE;
+    }
   }
 
 
@@ -81,7 +93,7 @@ class RdfGraphService {
    *
    * @return bool
    */
-  private function fetchVocabularyRoot($application_uri, $vocabulary, StateInterface $state) {
+  private function fetchResourceURIFromSkosmos($application_uri, $vocabulary, StateInterface $state) {
     $completeUri = "$application_uri?uri=$vocabulary&format=text/turtle";
     try {
       $this->graph->load($completeUri, 'text/turtle');
@@ -147,41 +159,73 @@ class RdfGraphService {
     return array_merge($tops, $children);
   }
 
-  private function fetchConceptTreeRecursively($application_uri, array $resources, $max, $cacheKey, array $buffer, StateInterface $state, FeedInterface $feed, $maxProgress) {
+  /**
+   * @param string $application_uri
+   * @param array $resources
+   * @param boolean $incrementalFetch
+   * @param array $fetchedLeafConceptUriBuffer
+   * @param integer $maxNumberOfLeafConcepts
+   * @param string $cacheKey
+   * @param array $fetchedUribuffer
+   * @param \Drupal\feeds\StateInterface $state
+   * @param \Drupal\feeds\FeedInterface $feed
+   * @param $maxProgress
+   *
+   * @return bool
+   */
+  private function fetchConceptTreeRecursively($application_uri, array $resources, $incrementalFetch, array &$fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, array &$fetchedUribuffer, StateInterface $state, FeedInterface $feed, $maxProgress) {
     if (count($resources) == 0) {
       return TRUE;
     }
-    $newConceptFound = FALSE;
+    if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
+      error_log("Max number of leaf concepts reached !");
+      // When the max number of leaf concepts is reached, we don't load concepts any more
+      return TRUE;
+    }
+    $newConceptLoaded = FALSE;
     $progressShare = (float) ($maxProgress / count($resources));
     $counter = 0;
     foreach ($resources as $resource) {
-      error_log($resource->getUri());
-      if (in_array($resource->getUri(), $buffer)) {
+      error_log("Resource to fetch : {$resource->getUri()}");
+      if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
+        error_log("Max number of leaf concepts reached !");
+        // When the max number of leaf concepts is reached, we don't load concepts any more
+        return TRUE;
+      }
+      // don't fetch the same URI twice
+      if (in_array($resource->getUri(), $fetchedUribuffer)) {
+        error_log("Resource yet fetched : {$resource->getUri()}");
         continue;
       }
-      if ($this->isInCache($resource->getUri(), $cacheKey)) {
-        //continue;
+      // If it's in cache, it's a leaf concept. In incremental mode, we dont take it
+      if ($incrementalFetch && $this->isInCache($resource->getUri(), $cacheKey)) {
+        error_log("Resource is in cache : {$resource->getUri()}");
+        continue;
       }
 
-      $buffer[] = $resource->getUri();
-      if (count($buffer) >= $max) {
-        //return TRUE;
-      }
       $args = ['%uri' => $resource->getUri()];
       $state->setMessage($this->t('Loading concept "%uri"', $args), 'status');
       $state->logMessages($feed);
-      if (!$this->fetchVocabularyRoot($application_uri, $resource->getUri(), $state)) {
+      if (!$this->fetchResourceURIFromSkosmos($application_uri, $resource->getUri(), $state)) {
         return FALSE;
       }
-      $newConceptFound = TRUE;
+      error_log("* New resource loaded : {$resource->getUri()}");
+      // add URI to the buffer
+      $fetchedUribuffer[] = $resource->getUri();
+      error_log("Number of concepts : " . count($fetchedUribuffer));
       //$state->progress(self::PROGRESS_TOTAL, $counter * $progressShare);
-      $counter++;
-      $this->setInCache($resource->getUri(), $cacheKey);
-    }
-    if (TRUE === $newConceptFound) {
+      // $counter++;
       $children = $resource->all('skos:narrower');
-
-      if (!$this->fetchConceptTreeRecursively($application_uri, $children, $max, $cacheKey, $buffer, $state, $feed, $counter * $progressShare)) {
+      if (count($children) == 0) {
+        // It's a leaf concept
+        // Put it in cache for next execution
+        error_log("It's a leaf concept !");
+        $this->setInCache($resource->getUri(), $cacheKey);
+        // Put it in buffer to count number of leaf concepts fetched
+        $fetchedLeafConceptUriBuffer[] = $resource->getUri();
+        error_log("Number of leaf concepts : " . count($fetchedLeafConceptUriBuffer));
+      }
+      elseif (!$this->fetchConceptTreeRecursively($application_uri, $children, $incrementalFetch, $fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, $fetchedUribuffer, $state, $feed, $counter * $progressShare)) {
         return FALSE;
       }
     }

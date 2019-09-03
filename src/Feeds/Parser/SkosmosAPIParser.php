@@ -46,7 +46,14 @@ class SkosmosAPIParser extends ParserBase {
    */
   public function parse(FeedInterface $feed, FetcherResultInterface $fetcher_result, StateInterface $state) {
     $feed_config = $feed->getConfigurationFor($this);
-
+    $incrementalFetch = FALSE;
+    if (isset($feed->get('config')->incremental_fetch)) {
+      $incrementalFetch = $feed->get('config')->incremental_fetch;
+    }
+    $conceptsToFetchUris = [];
+    if ($incrementalFetch) {
+      $conceptsToFetchUris = $feed->get('config')->uris_to_parse;
+    }
     if (!filesize($fetcher_result->getFilePath())) {
       throw new EmptyFeedException();
     }
@@ -59,11 +66,17 @@ class SkosmosAPIParser extends ParserBase {
     $result = new ParserResult();
     $state->total = count($concepts);
     $counter = 0;
+    if ($incrementalFetch) {
+      // Keep only newly fetched concepts
+      $concepts = array_filter($concepts, function (\EasyRdf_Resource $concept) use ($conceptsToFetchUris) {
+        return in_array($concept->getUri(), $conceptsToFetchUris) ? TRUE : FALSE;
+      });
+    }
     /**
      * @var \EasyRdf_Resource $concept
      */
     foreach ($concepts as $concept) {
-      // Report progress.
+
       $counter += 1;
       //      $state->pointer = $counter;
       //      $state->progress($state->total, $state->pointer);
@@ -78,8 +91,10 @@ class SkosmosAPIParser extends ParserBase {
       $this->registerPredicateAsMultipleLitteral('altLabel', $concept, $item);
 
       $result->addItem($item);
-      $state->setMessage("Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})");
+      $message = "Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})";
+      $state->setMessage($message);
       $state->logMessages($feed);
+      error_log($message);
     }
 
 
