@@ -24,4 +24,22 @@ class SkosmosAPIFetcherForm extends ExternalPluginFormBase {
     return $form;
   }
 
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
+    $values = $form_state->getValues();
+    // Ensure that the application URI is a valid URI
+    if (!empty($form['application_uri'])) {
+      if (empty($values['application_uri'])) {
+        $form_state->setError($form['application_uri'], $this->t('Application URI in fetcher parameters is mandatory.'));
+      }
+      elseif (!filter_var($values['application_uri'], FILTER_VALIDATE_URL)) {
+        $form_state->setError($form['application_uri'], $this->t('The provided application URI in fetcher parameters is not an URI.'));
+      }
+    }
+
+  }
+
 }
