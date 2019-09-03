@@ -59,24 +59,26 @@ class SkosmosAPIParser extends ParserBase {
     $result = new ParserResult();
     $state->total = count($concepts);
     $counter = 0;
-
+    /**
+     * @var \EasyRdf_Resource $concept
+     */
     foreach ($concepts as $concept) {
       // Report progress.
       $counter += 1;
       //      $state->pointer = $counter;
       //      $state->progress($state->total, $state->pointer);
-
       $item = new SkosConceptItem();
-      $prefLabel = $concept->getLiteral('skos:prefLabel');
-      $broader = $concept->getResource('skos:broader');
-      $item->set('prefLabel', $prefLabel->getValue());
-      $item->set('URI', $concept->getUri());
-      if ($broader instanceof \EasyRdf_Resource) {
-        $item->set('broader', $broader->getUri());
-      }
-      $result->addItem($item);
 
-      $state->setMessage("Parsing concept {$prefLabel}");
+      $this->registerUri($concept, $item);
+      $this->registerBroader($concept, $item);
+
+      $this->registerPredicateAsSingleLitteral('prefLabel', $concept, $item);
+      $this->registerPredicateAsSingleLitteral('scopeNote', $concept, $item);
+      $this->registerPredicateAsSingleLitteral('definition', $concept, $item);
+      $this->registerPredicateAsMultipleLitteral('altLabel', $concept, $item);
+
+      $result->addItem($item);
+      $state->setMessage("Parsed SKOS concept : {$prefLabel}");
       $state->logMessages($feed);
     }
 
@@ -142,6 +144,49 @@ class SkosmosAPIParser extends ParserBase {
     return [
       'keep_structure' => TRUE,
     ];
+  }
+
+  /**
+   * @param \EasyRdf_Resource $concept
+   * @param string $predicate
+   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
+   */
+  private function registerPredicateAsMultipleLitteral($predicate, \EasyRdf_Resource $concept, SkosConceptItem $item) {
+    $objects = $concept->allLiterals('skos:' . $predicate);
+    $item->set($predicate, array_map(function (\EasyRdf_Literal $literal) {
+      return $literal->getValue();
+    }, $objects));
+  }
+
+  /**
+   * @param \EasyRdf_Resource $concept
+   * @param string $predicate
+   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
+   */
+  private function registerPredicateAsSingleLitteral($predicate, \EasyRdf_Resource $concept, SkosConceptItem $item) {
+    $object = $concept->getLiteral('skos:' . $predicate);
+    if ($object instanceof \EasyRdf_Literal) {
+      $item->set($predicate, $object->getValue());
+    }
+  }
+
+  /**
+   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
+   * @param \EasyRdf_Resource $concept
+   */
+  private function registerUri(\EasyRdf_Resource $concept, SkosConceptItem $item) {
+    $item->set('URI', $concept->getUri());
+  }
+
+  /**
+   * @param \EasyRdf_Resource $concept
+   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
+   */
+  private function registerBroader(\EasyRdf_Resource $concept, SkosConceptItem $item) {
+    $broader = $concept->getResource('skos:broader');
+    if ($broader instanceof \EasyRdf_Resource) {
+      $item->set('broader', $broader->getUri());
+    }
   }
 
 }

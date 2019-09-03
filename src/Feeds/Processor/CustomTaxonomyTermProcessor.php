@@ -41,7 +41,6 @@ class CustomTaxonomyTermProcessor extends EntityProcessorBase
         if (isset($feed->get('config')->target_vocabulary)) {
             $this->configuration['values']['vid'] = $feed->get('config')->target_vocabulary;
         }
-        // TODO we sould delete this field if not used any more
         $this->prepareFeedsItemField();
         $this->prepareFeedsURIField();
         $this->prepareFeedsMappings($feed);

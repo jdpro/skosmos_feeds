@@ -165,7 +165,7 @@ class RdfGraphService {
 
       $buffer[] = $resource->getUri();
       if (count($buffer) >= $max) {
-        return TRUE;
+        //return TRUE;
       }
       $args = ['%uri' => $resource->getUri()];
       $state->setMessage($this->t('Loading concept "%uri"', $args), 'status');
