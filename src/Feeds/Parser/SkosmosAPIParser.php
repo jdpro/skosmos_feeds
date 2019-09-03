@@ -130,10 +130,8 @@ class SkosmosAPIParser extends ParserBase {
    * {@inheritdoc}
    */
   public function defaultFeedConfiguration() {
-    // TODO remove
     return [
-      'delimiter' => $this->configuration['delimiter'],
-      'no_headers' => $this->configuration['no_headers'],
+      'keep_structure' => $this->configuration['keep_structure'],
     ];
   }
 
@@ -141,11 +139,8 @@ class SkosmosAPIParser extends ParserBase {
    * {@inheritdoc}
    */
   public function defaultConfiguration() {
-    // TODO remove
     return [
-      'delimiter' => ',',
-      'no_headers' => 0,
-      'line_limit' => 100,
+      'keep_structure' => TRUE,
     ];
   }
 
