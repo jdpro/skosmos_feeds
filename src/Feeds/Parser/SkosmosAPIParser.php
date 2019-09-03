@@ -71,14 +71,14 @@ class SkosmosAPIParser extends ParserBase {
 
       $this->registerUri($concept, $item);
       $this->registerBroader($concept, $item);
-
+      // TODO handle missing preflabel. Should not happen with regular skos.
       $this->registerPredicateAsSingleLitteral('prefLabel', $concept, $item);
       $this->registerPredicateAsSingleLitteral('scopeNote', $concept, $item);
       $this->registerPredicateAsSingleLitteral('definition', $concept, $item);
       $this->registerPredicateAsMultipleLitteral('altLabel', $concept, $item);
 
       $result->addItem($item);
-      $state->setMessage("Parsed SKOS concept : {$prefLabel}");
+      $state->setMessage("Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})");
       $state->logMessages($feed);
     }
 
