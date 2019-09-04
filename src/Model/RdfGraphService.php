@@ -180,7 +180,8 @@ class RdfGraphService {
       return TRUE;
     }
     if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
-      error_log("Max number of leaf concepts reached !");
+      \Drupal::logger("skosmos_feeds")
+        ->debug("Max number of leaf concepts reached !");
       // When the max number of leaf concepts is reached, we don't load concepts any more
       return TRUE;
     }
@@ -188,20 +189,24 @@ class RdfGraphService {
     $progressShare = (float) ($maxProgress / count($resources));
     $counter = 0;
     foreach ($resources as $resource) {
-      error_log("Resource to fetch : {$resource->getUri()}");
+      \Drupal::logger("skosmos_feeds")
+        ->debug("Resource to fetch : {$resource->getUri()}");
       if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
-        error_log("Max number of leaf concepts reached !");
+        \Drupal::logger("skosmos_feeds")
+          ->debug("Max number of leaf concepts reached : " . count($fetchedLeafConceptUriBuffer));
         // When the max number of leaf concepts is reached, we don't load concepts any more
         return TRUE;
       }
       // don't fetch the same URI twice
       if (in_array($resource->getUri(), $fetchedUribuffer)) {
-        error_log("Resource yet fetched : {$resource->getUri()}");
+        \Drupal::logger("skosmos_feeds")
+          ->debug("Resource already fetched : {$resource->getUri()}");
         continue;
       }
       // If it's in cache, it's a leaf concept. In incremental mode, we dont take it
       if ($incrementalFetch && $this->isInCache($resource->getUri(), $cacheKey)) {
-        error_log("Resource is in cache : {$resource->getUri()}");
+        \Drupal::logger("skosmos_feeds")
+          ->debug("Resource is in cache : {$resource->getUri()}");
         continue;
       }
 
@@ -211,21 +216,25 @@ class RdfGraphService {
       if (!$this->fetchResourceURIFromSkosmos($application_uri, $resource->getUri(), $state)) {
         return FALSE;
       }
-      error_log("* New resource loaded : {$resource->getUri()}");
+      \Drupal::logger("skosmos_feeds")
+        ->debug("* New resource loaded : {$resource->getUri()}");
       // add URI to the buffer
       $fetchedUribuffer[] = $resource->getUri();
-      error_log("Number of concepts : " . count($fetchedUribuffer));
+      \Drupal::logger("skosmos_feeds")
+        ->debug("Number of newly fetched concepts : " . count($fetchedUribuffer));
       //$state->progress(self::PROGRESS_TOTAL, $counter * $progressShare);
       // $counter++;
       $children = $resource->all('skos:narrower');
       if (count($children) == 0) {
         // It's a leaf concept
         // Put it in cache for next execution
-        error_log("It's a leaf concept !");
+        \Drupal::logger("skosmos_feeds")
+          ->debug($resource->getUri() . " is a leaf concept.");
         $this->setInCache($resource->getUri(), $cacheKey);
         // Put it in buffer to count number of leaf concepts fetched
         $fetchedLeafConceptUriBuffer[] = $resource->getUri();
-        error_log("Number of leaf concepts : " . count($fetchedLeafConceptUriBuffer));
+        \Drupal::logger("skosmos_feeds")
+          ->debug("Number of leaf concepts : " . count($fetchedLeafConceptUriBuffer));
       }
       else {
         $success = $this->fetchConceptTreeRecursively($application_uri, $children, $incrementalFetch, $fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, $fetchedUribuffer, $state, $feed, $counter * $progressShare);
@@ -234,6 +243,8 @@ class RdfGraphService {
         }
         // It's not a leaf concept, but the branch has been fully explored
         $branchFullyExplored = count($fetchedLeafConceptUriBuffer) < $maxNumberOfLeafConcepts;
+        \Drupal::logger("skosmos_feeds")
+          ->debug("Traversal of branch " . $resource->getUri() . " completed.");
         // Don't traverse it next time
         if ($incrementalFetch && $branchFullyExplored) {
           $this->setInCache($resource->getUri(), $cacheKey);
