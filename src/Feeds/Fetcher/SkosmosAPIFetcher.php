@@ -68,7 +68,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
    * @param array $plugin_definition
    *   The plugin definition.
    * @param \Drupal\skosmos_feeds\Model\RdfGraphService $rdfGraphService
-   *   The Guzzle client.
+   *   The RDF gaph service
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache
    *   The cache backend.
    * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -104,7 +104,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
     }
     $tempFile = $this->getTempFile();
     $data = $this->rdfGraphService->serialize($state);
-    //TODO serialization failure
+    //TODO handle serialization failure
     file_put_contents($tempFile, $data);
     //TODO handle write failure
     return new FetcherResult($tempFile);
@@ -138,7 +138,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
    *   The cache key for the feed.
    */
   protected function getCacheKey(FeedInterface $feed) {
-    return $feed->id() . ':' . hash('sha256', $feed->getSource());
+    return $feed->id() . ':fetcher:' . hash('sha256', $feed->getSource());
   }
 
   /**

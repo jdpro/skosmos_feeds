@@ -11,9 +11,11 @@ use EasyRdf_Serialiser_Arc;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 
+
 class RdfGraphService {
 
   use StringTranslationTrait;
+  use Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
 
   const PROGRESS_TOTAL = 1000;
 
@@ -225,38 +227,21 @@ class RdfGraphService {
         $fetchedLeafConceptUriBuffer[] = $resource->getUri();
         error_log("Number of leaf concepts : " . count($fetchedLeafConceptUriBuffer));
       }
-      elseif (!$this->fetchConceptTreeRecursively($application_uri, $children, $incrementalFetch, $fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, $fetchedUribuffer, $state, $feed, $counter * $progressShare)) {
-        return FALSE;
+      else {
+        $success = $this->fetchConceptTreeRecursively($application_uri, $children, $incrementalFetch, $fetchedLeafConceptUriBuffer, $maxNumberOfLeafConcepts, $cacheKey, $fetchedUribuffer, $state, $feed, $counter * $progressShare);
+        if (!$success) {
+          return FALSE;
+        }
+        // It's not a leaf concept, but the branch has been fully explored
+        $branchFullyExplored = count($fetchedLeafConceptUriBuffer) < $maxNumberOfLeafConcepts;
+        // Don't traverse it next time
+        if ($incrementalFetch && $branchFullyExplored) {
+          $this->setInCache($resource->getUri(), $cacheKey);
+        }
       }
+
     }
     return TRUE;
-  }
-
-  private function isInCache($uri, $cacheKey) {
-    $cachedUris = $this->getCachedUris($cacheKey);
-    return is_array($cachedUris) && in_array($uri, $cachedUris);
-  }
-
-
-  private function setInCache($uri, $cacheKey) {
-    $cachedUris = $this->getCachedUris($cacheKey);
-    if (!is_array($cachedUris)) {
-      $cachedUris = [$uri];
-    }
-    else {
-      $cachedUris[] = $uri;
-    }
-    $urisCache = $this->cache->set($cacheKey . '_loaded_uris', $cachedUris);
-  }
-
-
-  /**
-   * @param $cacheKey
-   *
-   * @return bool
-   */
-  private function getCachedUris($cacheKey) {
-    return $cachedUris = $this->cache->get($cacheKey . '_loaded_uris')->data;
   }
 
   /**

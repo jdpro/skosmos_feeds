@@ -2,6 +2,7 @@
 
 namespace Drupal\skosmos_feeds\Feeds\Parser;
 
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\feeds\Exception\EmptyFeedException;
 use Drupal\feeds\FeedInterface;
 use Drupal\feeds\Feeds\Parser\ParserBase;
@@ -9,6 +10,7 @@ use Drupal\feeds\Result\FetcherResultInterface;
 use Drupal\feeds\Result\ParserResult;
 use Drupal\feeds\StateInterface;
 use Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem;
+
 
 /**
  * Defines a CSV feed parser.
@@ -23,10 +25,19 @@ use Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem;
  *     "feed" =
  *   "Drupal\skosmos_feeds\Feeds\Parser\Form\SkosmosAPIParserFeedForm",
  *   },
- *   arguments = {"@skosmos_feeds.rdf_graph_service"}
+ *   arguments = {"@skosmos_feeds.rdf_graph_service", "@cache.feeds_download"}
  * )
  */
 class SkosmosAPIParser extends ParserBase {
+
+  use Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
+
+  /**
+   * The cache backend.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $cache;
 
   /**
    * SkosmosAPIParser constructor.
@@ -35,9 +46,12 @@ class SkosmosAPIParser extends ParserBase {
    * @param $plugin_id
    * @param array $plugin_definition
    * @param \Drupal\skosmos_feeds\Model\RdfGraphService $rdfGraphService
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache
+   *   The cache backend.
    */
-  public function __construct(array $configuration, $plugin_id, array $plugin_definition, \Drupal\skosmos_feeds\Model\RdfGraphService $rdfGraphService) {
+  public function __construct(array $configuration, $plugin_id, array $plugin_definition, \Drupal\skosmos_feeds\Model\RdfGraphService $rdfGraphService, CacheBackendInterface $cache) {
     $this->rdfGraphService = $rdfGraphService;
+    $this->cache = $cache;
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
 
@@ -47,18 +61,21 @@ class SkosmosAPIParser extends ParserBase {
   public function parse(FeedInterface $feed, FetcherResultInterface $fetcher_result, StateInterface $state) {
     $feed_config = $feed->getConfigurationFor($this);
     $incrementalFetch = FALSE;
+    // Get value of "incremental fetch" option
     if (isset($feed->get('config')->incremental_fetch)) {
       $incrementalFetch = $feed->get('config')->incremental_fetch;
     }
+    // In case of "incremental fetch", a list of uris to parse is available in feed configuration
+    // only newly fetched uris should be parsed
     $conceptsToFetchUris = [];
     if ($incrementalFetch) {
       $conceptsToFetchUris = $feed->get('config')->uris_to_parse;
     }
+    // Rdf file could be empty or missing
     if (!filesize($fetcher_result->getFilePath())) {
       throw new EmptyFeedException();
     }
-
-    // Load and configure parser.
+    // Extract skos concepts from Rdf file.
     $concepts = $this->rdfGraphService->findConcepts($fetcher_result->getFilePath(), $state);
     if (FALSE === $concepts) {
       throw new EmptyFeedException();
@@ -72,11 +89,22 @@ class SkosmosAPIParser extends ParserBase {
         return in_array($concept->getUri(), $conceptsToFetchUris) ? TRUE : FALSE;
       });
     }
+    $cacheKey = $this->getCacheKey($feed);
+
+    $listOfPrefLabelsForLogs = [];
+
     /**
      * @var \EasyRdf_Resource $concept
      */
     foreach ($concepts as $concept) {
-
+      if ($incrementalFetch) {
+        if ($this->isInCache($concept->getUri(), $cacheKey)) {
+          continue;
+        }
+        else {
+          $this->setInCache($concept->getUri(), $cacheKey);
+        }
+      }
       $counter += 1;
       //      $state->pointer = $counter;
       //      $state->progress($state->total, $state->pointer);
@@ -92,11 +120,15 @@ class SkosmosAPIParser extends ParserBase {
 
       $result->addItem($item);
       $message = "Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})";
-      $state->setMessage($message);
-      $state->logMessages($feed);
-      error_log($message);
+      \Drupal::logger("skosmos_feeds")->debug($message);
+
+      $listOfPrefLabelsForLogs[] = $item->get('prefLabel');
     }
 
+    $message = "Parsed {$counter} concepts : " . implode(",", $listOfPrefLabelsForLogs);
+
+    $state->setMessage($message);
+    $state->logMessages($feed);
 
     //    $state->setCompleted();
 
@@ -202,6 +234,19 @@ class SkosmosAPIParser extends ParserBase {
     if ($broader instanceof \EasyRdf_Resource) {
       $item->set('broader', $broader->getUri());
     }
+  }
+
+  /**
+   * Returns the fetcher cache key for a given feed.
+   *
+   * @param \Drupal\feeds\FeedInterface $feed
+   *   The feed to find the cache key for.
+   *
+   * @return string
+   *   The cache key for the feed.
+   */
+  protected function getCacheKey(FeedInterface $feed) {
+    return $feed->id() . ':parser:' . hash('sha256', $feed->getSource());
   }
 
 }
