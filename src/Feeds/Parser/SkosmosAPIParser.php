@@ -10,6 +10,7 @@ use Drupal\feeds\Result\FetcherResultInterface;
 use Drupal\feeds\Result\ParserResult;
 use Drupal\feeds\StateInterface;
 use Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem;
+use Drupal\skosmos_feeds\Feeds\Item\SkosConceptItemFactory;
 
 
 /**
@@ -38,6 +39,11 @@ class SkosmosAPIParser extends ParserBase {
    * @var \Drupal\Core\Cache\CacheBackendInterface
    */
   protected $cache;
+
+  /**
+   * @var \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItemFactory
+   */
+  protected $itemFactory;
 
   /**
    * SkosmosAPIParser constructor.
@@ -108,19 +114,10 @@ class SkosmosAPIParser extends ParserBase {
       $counter += 1;
       //      $state->pointer = $counter;
       //      $state->progress($state->total, $state->pointer);
-      $item = new SkosConceptItem();
-
-      $this->registerUri($concept, $item);
-      $this->registerBroader($concept, $item);
-      // TODO handle missing preflabel. Should not happen with regular skos.
-      $this->registerPredicateAsSingleLitteral('prefLabel', $concept, $item);
-      $this->registerPredicateAsSingleLitteral('scopeNote', $concept, $item);
-      $this->registerPredicateAsSingleLitteral('definition', $concept, $item);
-      $this->registerPredicateAsMultipleLitteral('altLabel', $concept, $item);
-
+      $item = $this->getItemFactory()->buildItem($concept);
       $result->addItem($item);
-      $message = "Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})";
-      \Drupal::logger("skosmos_feeds")->debug($message);
+      \Drupal::logger("skosmos_feeds")
+        ->debug("Parsed SKOS concept : {$item->get('prefLabel')} ({$item->get('URI')})");
 
       $listOfPrefLabelsForLogs[] = $item->get('prefLabel');
     }
@@ -193,48 +190,6 @@ class SkosmosAPIParser extends ParserBase {
     ];
   }
 
-  /**
-   * @param \EasyRdf_Resource $concept
-   * @param string $predicate
-   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
-   */
-  private function registerPredicateAsMultipleLitteral($predicate, \EasyRdf_Resource $concept, SkosConceptItem $item) {
-    $objects = $concept->allLiterals('skos:' . $predicate);
-    $item->set($predicate, array_map(function (\EasyRdf_Literal $literal) {
-      return $literal->getValue();
-    }, $objects));
-  }
-
-  /**
-   * @param \EasyRdf_Resource $concept
-   * @param string $predicate
-   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
-   */
-  private function registerPredicateAsSingleLitteral($predicate, \EasyRdf_Resource $concept, SkosConceptItem $item) {
-    $object = $concept->getLiteral('skos:' . $predicate);
-    if ($object instanceof \EasyRdf_Literal) {
-      $item->set($predicate, $object->getValue());
-    }
-  }
-
-  /**
-   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
-   * @param \EasyRdf_Resource $concept
-   */
-  private function registerUri(\EasyRdf_Resource $concept, SkosConceptItem $item) {
-    $item->set('URI', $concept->getUri());
-  }
-
-  /**
-   * @param \EasyRdf_Resource $concept
-   * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
-   */
-  private function registerBroader(\EasyRdf_Resource $concept, SkosConceptItem $item) {
-    $broader = $concept->getResource('skos:broader');
-    if ($broader instanceof \EasyRdf_Resource) {
-      $item->set('broader', $broader->getUri());
-    }
-  }
 
   /**
    * Returns the fetcher cache key for a given feed.
@@ -247,6 +202,19 @@ class SkosmosAPIParser extends ParserBase {
    */
   protected function getCacheKey(FeedInterface $feed) {
     return $feed->id() . ':parser:' . hash('sha256', $feed->getSource());
+  }
+
+
+  /**
+   * Instantiates item factory if not available
+   *
+   * @return \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItemFactory
+   */
+  protected function getItemFactory() {
+    if (!isset($this->itemFactory)) {
+      $this->itemFactory = new SkosConceptItemFactory();
+    }
+    return $this->itemFactory;
   }
 
 }

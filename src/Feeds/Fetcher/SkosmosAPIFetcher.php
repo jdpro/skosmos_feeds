@@ -87,9 +87,11 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
   public function fetch(FeedInterface $feed, StateInterface $state) {
     $maxNumberOfLeafConcepts = 0;
     $incrementalFetch = FALSE;
+    // Get value of "incremental fetch" option
     if (isset($feed->get('config')->incremental_fetch)) {
       $incrementalFetch = $feed->get('config')->incremental_fetch;
     }
+    // Get value of "max number of leaf concepts" option
     if ($incrementalFetch) {
       if (isset($feed->get('config')->max_number_of_leaf_concepts)) {
         $maxNumberOfLeafConcepts = intval($feed->get('config')->max_number_of_leaf_concepts);
@@ -100,6 +102,8 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
     $fetchedConcepts = $this->rdfGraphService->fetchVocabularyFromSkosmos($this->getConfiguration('application_uri'), $feed->getSource(), $incrementalFetch, $maxNumberOfLeafConcepts, $state, $feed, $cacheKey);
     //TODO handle fetch failure
     if ($incrementalFetch) {
+      //Store list of newly fetched concepts in feed configuration
+      // as the parser should not process everything in the generated skos file
       $feed->get('config')->uris_to_parse = $fetchedConcepts;
     }
     $tempFile = $this->getTempFile();
