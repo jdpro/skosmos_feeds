@@ -122,7 +122,12 @@ class SkosmosAPIParser extends ParserBase {
       $listOfPrefLabelsForLogs[] = $item->get('prefLabel');
     }
 
-    $message = "Parsed {$counter} concepts : " . implode(",", $listOfPrefLabelsForLogs);
+    if ($counter > 0) {
+      $message = "{$counter} concept(s) parsed from RDF data file : " . implode(",", $listOfPrefLabelsForLogs) . ".";
+    }
+    else {
+      $message = "No concept parsed from RDF data file.";
+    }
 
     $state->setMessage($message);
     $state->logMessages($feed);
