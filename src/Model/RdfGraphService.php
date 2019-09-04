@@ -15,7 +15,7 @@ use Drupal\Core\StringTranslation\TranslationInterface;
 class RdfGraphService {
 
   use StringTranslationTrait;
-  use Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
+  use \Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
 
   const PROGRESS_TOTAL = 1000;
 
@@ -179,7 +179,7 @@ class RdfGraphService {
     if (count($resources) == 0) {
       return TRUE;
     }
-    if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
+    if ($incrementalFetch && count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
       \Drupal::logger("skosmos_feeds")
         ->debug("Max number of leaf concepts reached !");
       // When the max number of leaf concepts is reached, we don't load concepts any more
@@ -191,7 +191,7 @@ class RdfGraphService {
     foreach ($resources as $resource) {
       \Drupal::logger("skosmos_feeds")
         ->debug("Resource to fetch : {$resource->getUri()}");
-      if (count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
+      if ($incrementalFetch && count($fetchedLeafConceptUriBuffer) >= $maxNumberOfLeafConcepts) {
         \Drupal::logger("skosmos_feeds")
           ->debug("Max number of leaf concepts reached : " . count($fetchedLeafConceptUriBuffer));
         // When the max number of leaf concepts is reached, we don't load concepts any more
@@ -203,7 +203,8 @@ class RdfGraphService {
           ->debug("Resource already fetched : {$resource->getUri()}");
         continue;
       }
-      // If it's in cache, it's a leaf concept. In incremental mode, we dont take it
+      // If it's in cache, it's a leaf concept or a fully explored branch.
+      // In incremental mode, we dont take it
       if ($incrementalFetch && $this->isInCache($resource->getUri(), $cacheKey)) {
         \Drupal::logger("skosmos_feeds")
           ->debug("Resource is in cache : {$resource->getUri()}");
@@ -211,7 +212,8 @@ class RdfGraphService {
       }
 
       $args = ['%uri' => $resource->getUri()];
-      $state->setMessage($this->t('Loading concept "%uri"', $args), 'status');
+      \Drupal::logger("skosmos_feeds")
+        ->debug($this->t('Loading concept "%uri"', $args));
       $state->logMessages($feed);
       if (!$this->fetchResourceURIFromSkosmos($application_uri, $resource->getUri(), $state)) {
         return FALSE;

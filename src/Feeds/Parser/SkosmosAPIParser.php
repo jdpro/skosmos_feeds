@@ -31,7 +31,7 @@ use Drupal\skosmos_feeds\Feeds\Item\SkosConceptItemFactory;
  */
 class SkosmosAPIParser extends ParserBase {
 
-  use Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
+  use \Drupal\skosmos_feeds\Utils\Cache\UriCachingAbilityTrait;
 
   /**
    * The cache backend.

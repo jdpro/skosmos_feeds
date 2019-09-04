@@ -43,7 +43,7 @@ class SkosmosAPIFetcherFeedForm extends ExternalPluginFormBase implements Contai
       '#size' => 3,
       '#maxlength' => 5,
       '#min' => 0,
-      '#required' => TRUE,
+      '#required' => FALSE,
     ];
 
     return $form;

@@ -101,6 +101,7 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
     $cacheKey = $this->getCacheKey($feed);
     $fetchedConcepts = $this->rdfGraphService->fetchVocabularyFromSkosmos($this->getConfiguration('application_uri'), $feed->getSource(), $incrementalFetch, $maxNumberOfLeafConcepts, $state, $feed, $cacheKey);
     //TODO handle fetch failure
+
     if ($incrementalFetch) {
       //Store list of newly fetched concepts in feed configuration
       // as the parser should not process everything in the generated skos file
@@ -110,7 +111,10 @@ class SkosmosAPIFetcher extends PluginBase implements ClearableInterface, Fetche
     $data = $this->rdfGraphService->serialize($state);
     //TODO handle serialization failure
     file_put_contents($tempFile, $data);
+
+    $state->setMessage($this->t("Fetched " . count($fetchedConcepts) . " new concept(s) from Skosmos."));
     //TODO handle write failure
+
     return new FetcherResult($tempFile);
   }
 
