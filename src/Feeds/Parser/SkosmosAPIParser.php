@@ -87,14 +87,16 @@ class SkosmosAPIParser extends ParserBase {
       throw new EmptyFeedException();
     }
     $result = new ParserResult();
-    $state->total = count($concepts);
-    $counter = 0;
+
     if ($incrementalFetch) {
       // Keep only newly fetched concepts
       $concepts = array_filter($concepts, function (\EasyRdf_Resource $concept) use ($conceptsToFetchUris) {
         return in_array($concept->getUri(), $conceptsToFetchUris) ? TRUE : FALSE;
       });
     }
+
+    $counter = 0;
+
     $cacheKey = $this->getCacheKey($feed);
 
     $listOfPrefLabelsForLogs = [];
@@ -112,8 +114,7 @@ class SkosmosAPIParser extends ParserBase {
         }
       }
       $counter += 1;
-      //      $state->pointer = $counter;
-      //      $state->progress($state->total, $state->pointer);
+
       $item = $this->getItemFactory()->buildItem($concept);
       $result->addItem($item);
       \Drupal::logger("skosmos_feeds")
@@ -131,9 +132,6 @@ class SkosmosAPIParser extends ParserBase {
 
     $state->setMessage($message);
     $state->logMessages($feed);
-
-    //    $state->setCompleted();
-
 
     return $result;
   }
