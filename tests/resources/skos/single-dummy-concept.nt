@@ -1,0 +1,6 @@
+<http://data.example.com/concepts/dummy> <http://www.w3.org/2004/02/skos/core#prefLabel> "dummy"@en .
+<http://data.example.com/concepts/dummy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2004/02/skos/core#Concept> .
+<http://data.example.com/concepts/dummy> <http://www.w3.org/2004/02/skos/core#topConceptOf> <http://data.example.com/vocabulary/dummy> .
+<http://data.example.com/concepts/dummy> <http://www.w3.org/2004/02/skos/core#altLabel> "foobar"@en .
+<http://data.example.com/concepts/dummy> <http://www.w3.org/2004/02/skos/core#scopeNote> "Dummy concept for tests."@en .
+
