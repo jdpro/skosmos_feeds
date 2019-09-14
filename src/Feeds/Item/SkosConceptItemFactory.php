@@ -9,6 +9,8 @@ use Drupal\feeds\Feeds\Item\BaseItem;
  */
 class SkosConceptItemFactory {
 
+  const RELATIONS = ['broader', 'broadMatch', 'narrowMatch', 'relatedMatch'];
+
   /**
    * @param \EasyRdf_Resource $concept
    *
@@ -18,7 +20,9 @@ class SkosConceptItemFactory {
     $item = new SkosConceptItem();
 
     $this->registerUri($concept, $item);
-    $this->registerBroader($concept, $item);
+    foreach (self::RELATIONS as $predicate) {
+      $this->registerRelation($predicate, $concept, $item);
+    }
     // TODO handle missing preflabel. Should not happen with regular skos.
     $this->registerPredicateAsSingleLitteral('prefLabel', $concept, $item);
     $this->registerPredicateAsSingleLitteral('scopeNote', $concept, $item);
@@ -26,7 +30,6 @@ class SkosConceptItemFactory {
     $this->registerPredicateAsMultipleLitteral('altLabel', $concept, $item);
     return $item;
   }
-
 
   /**
    * @param \EasyRdf_Resource $concept
@@ -61,13 +64,14 @@ class SkosConceptItemFactory {
   }
 
   /**
+   * @param $predicate
    * @param \EasyRdf_Resource $concept
    * @param \Drupal\skosmos_feeds\Feeds\Item\SkosConceptItem $item
    */
-  private function registerBroader(\EasyRdf_Resource $concept, SkosConceptItem $item) {
-    $broader = $concept->getResource('skos:broader');
-    if ($broader instanceof \EasyRdf_Resource) {
-      $item->set('broader', $broader->getUri());
+  private function registerRelation($predicate, \EasyRdf_Resource $concept, SkosConceptItem $item) {
+    $target = $concept->getResource("skos:$predicate");
+    if ($target instanceof \EasyRdf_Resource) {
+      $item->set($predicate, $target->getUri());
     }
   }
 

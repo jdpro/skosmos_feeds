@@ -43,4 +43,25 @@ class SkosConceptItem extends BaseItem {
    */
   protected $broader;
 
+  /**
+   * URI of the broader matching term
+   *
+   * @var string
+   */
+  protected $broadMatch;
+
+  /**
+   * URI of the narrower matching term
+   *
+   * @var string
+   */
+  protected $narrowMatch;
+
+  /**
+   * URI of the related term
+   *
+   * @var string
+   */
+  protected $relatedMatch;
+
 }

@@ -165,6 +165,18 @@ class SkosmosAPIParser extends ParserBase {
         'label' => $this->t('skos:broader'),
         'description' => $this->t('Broader concept.'),
       ],
+      'broadMatch' => [
+        'label' => $this->t('skos:broadMatch'),
+        'description' => $this->t('Hierarchical mapping link between two concepts'),
+      ],
+      'narrowMatch' => [
+        'label' => $this->t('skos:narrowMatch'),
+        'description' => $this->t('Hierarchical mapping link between two concepts'),
+      ],
+      'relatedMatch' => [
+        'label' => $this->t('skos:relatedMatch'),
+        'description' => $this->t('Associative mapping link between two concepts'),
+      ],
     ];
   }
 
