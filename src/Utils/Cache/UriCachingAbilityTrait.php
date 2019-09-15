@@ -37,6 +37,12 @@ trait UriCachingAbilityTrait {
    * @return array Cached URIs
    */
   protected function getCachedUris($cacheKey) {
-    return $cachedUris = $this->cache->get($cacheKey . '_loaded_uris')->data;
+    $cacheSpace = $this->cache->get($cacheKey . '_loaded_uris');
+    if (isset($cacheSpace->data)) {
+      return $cacheSpace->data;
+    }
+    else {
+      return [];
+    }
   }
 }
