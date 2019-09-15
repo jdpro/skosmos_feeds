@@ -80,7 +80,7 @@ class CustomTaxonomyTermProcessor extends EntityProcessorBase {
   }
 
   public function bundleLabel() {
-    return $this->t('Default vocabulary (if not specified in feed options)');
+    return $this->t('Model vocabulary for mapping (used as default if not specified in feed options)');
   }
 
   private function prepareFeedsMappings(FeedInterface $feed) {
