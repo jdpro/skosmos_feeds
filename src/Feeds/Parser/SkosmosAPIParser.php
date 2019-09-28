@@ -177,6 +177,14 @@ class SkosmosAPIParser extends ParserBase {
         'label' => $this->t('skos:relatedMatch'),
         'description' => $this->t('Associative mapping link between two concepts'),
       ],
+      'exactMatch' => [
+        'label' => $this->t('skos:exactMatch'),
+        'description' => $this->t('Indicates a high degree of confidence that two concepts can be used interchangeably across a wide range of information retrieval applications'),
+      ],
+      'closeMatch' => [
+        'label' => $this->t('skos:closeMatch'),
+        'description' => $this->t('Indicates that two concepts are sufficiently similar that they can be used interchangeably in some information retrieval applications'),
+      ],
     ];
   }
 

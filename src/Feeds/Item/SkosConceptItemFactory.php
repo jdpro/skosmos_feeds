@@ -9,7 +9,7 @@ use Drupal\feeds\Feeds\Item\BaseItem;
  */
 class SkosConceptItemFactory {
 
-  const RELATIONS = ['broader', 'broadMatch', 'narrowMatch', 'relatedMatch'];
+  const RELATIONS = ['broader', 'broadMatch', 'narrowMatch', 'relatedMatch', 'exactMatch', 'closeMatch'];
 
   /**
    * @param \EasyRdf_Resource $concept
