@@ -37,17 +37,27 @@ use Drupal\field\Entity\FieldStorageConfig;
 class CustomTaxonomyTermProcessor extends EntityProcessorBase {
 
   public function process(FeedInterface $feed, ItemInterface $item, StateInterface $state) {
-    $this->overrideDefaultVocabularyId($feed);
+
+    if (empty($this->getCustomVocabularyId($feed))) {
+      throw new \Exception($this->t("No target vocabulary defined"));
+    }
+    $this->overrideDefaultVocabularyId($this->getCustomVocabularyId($feed));
     $this->prepareFeedsItemField();
     $this->prepareFeedsURIField();
     $this->prepareFeedsMappings($feed);
-    parent::process($feed, $item, $state);
+    $targetIsReady = $this->checkVocabularyFieldCompleteness($feed, $state);
+    if (TRUE === $targetIsReady) {
+      parent::process($feed, $item, $state);
+    }
+    else {
+      throw new \RuntimeException($this->t('Target vocabulary %target_vid is missing some of the fields used in the mapping.', ['%target_vid' => $this->getCustomVocabularyId($feed)]));
+    }
   }
 
   public function postProcess(FeedInterface $feed, StateInterface $state) {
     // FIXME something erases value in configuration
     // and makes the default taxonomy label appear in log messages instead of the specific one
-    $this->overrideDefaultVocabularyId($feed);
+    $this->overrideDefaultVocabularyId($this->getCustomVocabularyId($feed));
     parent::postProcess($feed, $state);
   }
 
@@ -126,14 +136,42 @@ class CustomTaxonomyTermProcessor extends EntityProcessorBase {
     return FALSE;
   }
 
+  private function checkVocabularyFieldCompleteness(FeedInterface $feed, StateInterface $state) {
+    $currentMappings = $feed->getType()->getMappings();
+    $complete = TRUE;
+    //Loop on mappings for current Feed type
+    foreach ($currentMappings as $currentMapping) {
+      $target_field_from_mapping = $currentMapping['target'];
+      if (in_array($target_field_from_mapping, ['name', 'parent'])) {
+        continue;
+      }
+      //Check if the target taxonomy owns the field
+      if (!FieldConfig::loadByName($this->entityType(), $this->getCustomVocabularyId($feed), $target_field_from_mapping)) {
+        $state->setMessage($this->t('The target field @target_field is missing in the target taxonomy @target_taxonomy.', [
+          '@target_field' => $target_field_from_mapping,
+          '@target_taxonomy' => $this->getCustomVocabularyId($feed),
+        ]), 'error');
+        $complete = FALSE;
+      }
+    }
+    return $complete;
+  }
+
   /**
-   * @param \Drupal\feeds\FeedInterface $feed
+   * @param string $vid Vocabulary id
    */
-  private function overrideDefaultVocabularyId(FeedInterface $feed) {
+  private function overrideDefaultVocabularyId($vid) {
     // Substitute default target vocabulary (defined on feed type level)
     // by specific one (defined on feed level)
-    if (isset($feed->get('config')->target_vocabulary)) {
-      $this->configuration['values']['vid'] = $feed->get('config')->target_vocabulary;
-    }
+    $this->configuration['values'][$this->entityType->getKey('bundle')] = $vid;
+  }
+
+  /**
+   * @param \Drupal\feeds\FeedInterface $feed
+   *
+   * @return mixed
+   */
+  private function getCustomVocabularyId(FeedInterface $feed) {
+    return $vid = isset($feed->get('config')->target_vocabulary) ? $feed->get('config')->target_vocabulary : $this->configuration['values']['vid'];
   }
 }
